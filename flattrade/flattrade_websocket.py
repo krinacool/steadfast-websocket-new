@@ -199,7 +199,11 @@ async def main(port):
         # Create the print_quote_data task
         print_task = asyncio.create_task(print_quote_data())
 
-        server = await websockets.serve(websocket_server, WS_HOST, port)
+        # Modified to handle any path
+        async def path_handler(websocket, path):
+            await websocket_server(websocket, path)
+
+        server = await websockets.serve(path_handler, WS_HOST, port)
         await server.wait_closed()
     except Exception as e:
         logging.error(f"An error occurred in Flattrade WebSocket: {e}")
