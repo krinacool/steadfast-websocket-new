@@ -106,13 +106,24 @@ async def websocket_server(websocket, path):
         # Create a task to continuously send quote updates to the client
         send_task = asyncio.create_task(send_quote_updates(websocket))
 
+        # Initialize connection
+        if not socket_opened:
+            await asyncio.sleep(1)  # Wait for socket to open
+            if not socket_opened:
+                raise Exception("WebSocket failed to initialize")
+
         async for message in websocket:
             await handle_websocket_message(websocket, message)
     except websockets.exceptions.ConnectionClosed:
         print("Connection closed")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
     finally:
-        # Cancel the send task when the connection is closed
         send_task.cancel()
+        try:
+            await send_task
+        except asyncio.CancelledError:
+            pass
 
 
 async def send_quote_updates(websocket):

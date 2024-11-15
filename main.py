@@ -68,25 +68,40 @@ class BrokerSelector:
 async def main():
     broker_selector = BrokerSelector()
 
-    # Start the IPC server
-    asyncio.create_task(broker_selector.start_ipc_server())
+    # Start the IPC server in the background
+    ipc_server = asyncio.create_task(broker_selector.start_ipc_server())
 
     print("WebSocket server starting...")
-    while not broker_selector.selected_broker:
-        await asyncio.sleep(1)
 
-    selected_broker = broker_selector.selected_broker
-    print(f"Selected broker: {selected_broker}")
+    try:
+        # Wait for broker selection
+        while not broker_selector.selected_broker:
+            await asyncio.sleep(1)
+            print("Waiting for broker selection...")
 
-    ws_port = BROKER_PORTS[selected_broker]
-    print(f"Starting {selected_broker.capitalize()} WebSocket on port {ws_port}...")
+        selected_broker = broker_selector.selected_broker
+        print(f"Selected broker: {selected_broker}")
 
-    if selected_broker == "flattrade":
-        flattrade_initialize_api()
-        await flattrade_main(ws_port)
-    elif selected_broker == "shoonya":
-        shoonya_initialize_api()
-        await shoonya_main(ws_port)
+        ws_port = BROKER_PORTS[selected_broker]
+        print(f"Starting {selected_broker.capitalize()} WebSocket on port {ws_port}...")
+
+        # Initialize API before starting websocket server
+        if selected_broker == "flattrade":
+            flattrade_initialize_api()
+            await flattrade_main(ws_port)
+        elif selected_broker == "shoonya":
+            shoonya_initialize_api()
+            await shoonya_main(ws_port)
+
+    except Exception as e:
+        print(f"Error in main: {e}")
+    finally:
+        # Clean up IPC server
+        ipc_server.cancel()
+        try:
+            await ipc_server
+        except asyncio.CancelledError:
+            pass
 
 
 if __name__ == "__main__":
